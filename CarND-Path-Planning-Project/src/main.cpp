@@ -33,7 +33,7 @@ string hasData(string s) {
 
 int main() {
   uWS::Hub h;
-  Vehicle ego;
+  Vehicle ego; // Create vehicle object "ego" to represent the target vehicle
 
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
   vector<double> map_waypoints_x;
@@ -46,9 +46,6 @@ int main() {
   string map_file_ = "../data/highway_map.csv";
   // The max s value before wrapping around the track back to 0
   double max_s = 6945.554;
-
-  // Reference speed
-  const double ref_v = 49.0;
 
   ifstream in_map_(map_file_.c_str(), ifstream::in);
 
@@ -76,7 +73,7 @@ int main() {
   ego.map_waypoints_y = map_waypoints_y;
   ego.map_waypoints_s = map_waypoints_s;
 
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&ref_v,&ego](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&ego](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -108,10 +105,8 @@ int main() {
           ego.x = car_x;
           ego.y = car_y;
           ego.yaw = deg2rad(car_yaw);
-          ego.v = car_speed;
+          ego.v = car_speed / 2.23694; // mph to ms
           ego.lane = (int)(car_d / lane_width);
-
-          // vector<double> car_cur = {j[1]["x"], j[1]["y"], j[1]["s"], j[1]["d"], j[1]["yaw"], j[1]["speed"]};
 
         	// Previous path data given to the Planner
         	vector<double> previous_path_x = j[1]["previous_path_x"];
@@ -119,11 +114,10 @@ int main() {
 
           ego.prev_path_x = previous_path_x;
           ego.prev_path_y = previous_path_y;
+
         	// Previous path's end s and d values 
         	double end_path_s = j[1]["end_path_s"];
         	double end_path_d = j[1]["end_path_d"];
-
-          // vector<double> car_prev = {j[1]["previous_path_x"], j[1]["previous_path_y"], j[1]["end_path_s"], j[1]["end_path_d"]};
 
         	// Sensor Fusion Data, a list of all other cars on the same side of the road.
         	auto sensor_fusion = j[1]["sensor_fusion"];
@@ -132,12 +126,11 @@ int main() {
 
         	json msgJson;
 
+          // Acquire next path vector from the ego object
         	vector<double> next_vals_x = ego.next_path_x;
           vector<double> next_vals_y = ego.next_path_y;
 
-
-        	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-        	msgJson["next_x"] = next_vals_x;
+          msgJson["next_x"] = next_vals_x;
         	msgJson["next_y"] = next_vals_y;
 
         	auto msg = "42[\"control\","+ msgJson.dump()+"]";

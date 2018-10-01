@@ -10,65 +10,54 @@
 using namespace std;
 using namespace tk;
 
-const double ref_v = 49.0 * 2.23694;
-const double max_acc = 9;
-const double max_jerk = 9;
-const double dt = 0.02;
-const double lane_width = 4.0;
-const int path_size = 75;
+const double ref_v = 49.0 / 2.23694; // Reference speed to maintain (m/s)
+const double max_acc = 9; // Maximal acceleration allowed (m/s^2)
+const double max_jerk = 8; // Maximal jerk allowed (m/s^3)
+const double dt = 0.02; // Time resolution (s)
+const double lane_width = 4.0; // Physical width of the lane (m)
+const int lane_desire = 1; // Desire lane to stay
+const int PATH_SIZE = 50; // Size of the vector next_path
+const double cost_weight[2] = {0.95, 0.05}; // Cost weighs of inefficient and lane-swapping costs
 
 class Vehicle {
+  /* Vehicle class which defines the basic properties of vehicles on the highway
+  as well as functions related to complete highway driving */
 public:
 
-  map<string, int> lane_direction = {{"PLCL", 1}, {"LCL", 1}, {"LCR", -1}, {"PLCR", -1}};
+  map<string, int> lane_direction = {{"PLCL", -1}, {"LCL", -1}, {"LCR", 1}, {"PLCR", 1}};
 
-  /*struct collider{
+  spline s_gen; // Spline object to generate poly_fit
 
-    bool collision ; // is there a collision?
-    int  time; // time collision happens
-  };*/
+  double preferred_buffer = 40.0; // Front and rear buffer area when maintaining space
 
-  spline s_gen;
+  int lane; // Current lane of the vehicle
+  int lane_tag; // Target lane of the vehicle
 
-  // double L = 4.5;
+  // Occupied flag used under lane change
+  // 0 means vehicle allow all states
+  // 1 means vehicle busy under current state (not interruptable by other state)
+  bool occupied_flg;
 
-  double preferred_buffer = 30.0; // impacts "keep lane" behavior.
+  double d; // Vehicle d value in Frenet coordinate
+  double s; // Vehicle s value in Frenet coordinate
+  double x; // Vehicle x value in global coordinate
+  double y; // Vehicle y value in global coordinate
+  double v; // Vehicle speed value (m/s)
+  double yaw; // Vehcle yaw angle (rad)
 
-  int lane;
+  double target_speed; // Target speed used for next_path generation
 
-  // Vehicle state, 0 for free to accept instruction;
-  // 1 for busy performing current action but interruptable;
-  // 2 for busy performing current action and uninterruptable;
-  int veh_stat;
+  vector<double> next_path_x; // Copy of the next_path_x vector
+  vector<double> next_path_y; // Copy of the next_path_y vector
 
-  double d;
-  double s;
-  double x;
-  double y;
-  double v;
-  double yaw;
+  vector<double> prev_path_x; // Copy of the prev_path_x vector
+  vector<double> prev_path_y; // Copy of the prev_path_y vector
 
-  double target_speed;
+  vector<double> map_waypoints_x; // Copy of the map_waypoints_x vector
+  vector<double> map_waypoints_y; // Copy of the map_waypoints_y vector
+  vector<double> map_waypoints_s; // Copy of the map_waypoints_s vector
 
-  vector<double> next_path_x;
-  vector<double> next_path_y;
-
-  int N_pend;
-
-  vector<double> prev_path_x;
-  vector<double> prev_path_y;
-
-  vector<double> map_waypoints_x;
-  vector<double> map_waypoints_y;
-  vector<double> map_waypoints_s;
-  vector<double> map_waypoints_dx;
-  vector<double> map_waypoints_dy;
-
-  // int goal_lane;
-
-  // int goal_s;
-
-  string state;
+  string state; // Vehicle current state
 
   /**
   * Constructor
@@ -85,21 +74,21 @@ public:
 
   vector<string> successor_states();
 
-  vector<vector<double>> generate_trajectory(string state, const vector<vector<double>> &sensor_fusion);
+  vector<vector<double>> generate_trajectory(string state_in, const vector<vector<double>> &sensor_fusion);
 
   vector<vector<double>> keep_lane_trajectory(const vector<vector<double>> &sensor_fusion);
 
-  vector<vector<double>> lane_change_trajectory(string state, const vector<vector<double>> &sensor_fusion);
+  vector<vector<double>> lane_change_trajectory(string state_in, const vector<vector<double>> &sensor_fusion);
 
-  vector<vector<double>> prep_lane_change_trajectory(string state, const vector<vector<double>> &sensor_fusion);
+  vector<vector<double>> prep_lane_change_trajectory(string state_in, const vector<vector<double>> &sensor_fusion);
 
-  bool get_vehicle_behind(const vector<vector<double>> &sensor_fusion, int lane, int &ind);
+  bool get_vehicle_behind(const vector<vector<double>> &sensor_fusion, int target_lane, int &ind);
 
-  bool get_vehicle_ahead(const vector<vector<double>> &sensor_fusion, int lane, int &ind);
+  bool get_vehicle_ahead(const vector<vector<double>> &sensor_fusion, int target_lane, int &ind);
 
-  void get_polyfit_path(int lane_tag);
+  vector<double> get_polyfit_path(int target_lane, int num_pts, double resolution);
 
-  vector<vector<double>> gen_smooth_path(bool reset);
+  vector<vector<double>> gen_smooth_path(vector<double> ref);
 };
 
 #endif

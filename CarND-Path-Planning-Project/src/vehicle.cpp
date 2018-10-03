@@ -39,26 +39,8 @@ Vehicle::~Vehicle() {}
 
 
 void Vehicle::choose_next_state(const vector<vector<double>> &sensor_fusion) {
-    /*
-    
-    ***Here you can implement the transition_function code from the Behavior Planning Pseudocode
-    classroom concept.***
-    
-    INPUT: A predictions map. This is a map using vehicle id as keys with predicted
-        vehicle trajectories as values. A trajectory is a vector of Vehicle objects. The first
-        item in the trajectory represents the vehicle at the current timestep. The second item in
-        the trajectory represents the vehicle one timestep in the future.
-    OUTPUT: The the best (lowest cost) trajectory for the ego vehicle corresponding to the next ego vehicle state.
-
-    Functions that will be useful:
-    1. successor_states() - Uses the current state to return a vector of possible successor states for the finite 
-       state machine.
-    2. generate_trajectory(string state, const vector<vector<double>> &sensor_fusion) - Returns a vector of Vehicle objects 
-       representing a vehicle trajectory, given a state and predictions. Note that trajectory vectors 
-       might have size 0 if no possible trajectory exists for the state. 
-    3. calculate_cost(Vehicle vehicle, const vector<vector<double>> &sensor_fusion, vector<Vehicle> trajectory) - Included from 
-       cost.cpp, computes the cost for a trajectory.
-    */
+    /* Core function to choose the next state based on sensor readings and current vehicle status
+    and update next_path vectors */
 
     // Determine possible successor state
     vector<string> states = successor_states();
@@ -69,11 +51,13 @@ void Vehicle::choose_next_state(const vector<vector<double>> &sensor_fusion) {
     vector<string> final_states;
     vector<vector<vector<double>>> final_trajectories;
 
+    // Loop through all possible successor states
     for (vector<string>::iterator it = states.begin(); it != states.end(); ++it) {
         string state_in = *it;
         vector<vector<double>> trajectory = generate_trajectory(state_in, sensor_fusion);
         if (trajectory.size() != 0) {
-            cost = trajectory[trajectory.size() - 1][1]; // calculate_cost(*this, vector<vector<double>> se, trajectory);
+            // Retrieve cost at the end of trajectory vectors
+            cost = trajectory[trajectory.size() - 1][1];
             costs.push_back(cost);
             trajectory.erase(trajectory.end() - 1);
             final_trajectories.push_back(trajectory);
@@ -84,7 +68,7 @@ void Vehicle::choose_next_state(const vector<vector<double>> &sensor_fusion) {
     int best_idx = distance(begin(costs), best_cost);
     this->state = states[best_idx];
 
-    cout << "Best next state: " << states[best_idx] << "; cost: " << costs[best_idx] << endl;
+    // cout << "Best next state: " << states[best_idx] << "; cost: " << costs[best_idx] << endl;
     
     vector<vector<double>> final_trajectory = final_trajectories[best_idx];
     for(auto it = final_trajectory.begin(); it != final_trajectory.end(); it++) {
@@ -92,10 +76,13 @@ void Vehicle::choose_next_state(const vector<vector<double>> &sensor_fusion) {
         next_path_y.push_back((*it)[1]);
     }
 
+    // Only update target lane under pending lane change states
     if(states[best_idx].compare("PLCR") == 0 || states[best_idx].compare("PLCL") == 0 ) {
         lane_tag = lane + lane_direction[states[best_idx]];
     }
 
+    // When vehicle still under lane switch turn on occupied_flag
+    // Determined by the current "d" value compared with the target "d" value
     if(states[best_idx].compare("LCL") == 0 || states[best_idx].compare("LCR") == 0 ) {
         if(abs(d - ((0.5 + lane_tag) * lane_width)) / lane_width <= 0.025) {
             occupied_flg = false;
@@ -113,7 +100,7 @@ vector<string> Vehicle::successor_states() {
     */
     vector<string> states;
     string state_cur = this->state;
-    cout << "Current lane: " << this->lane << "; Target lane: " << lane_tag << "; Current d: " << d << endl;
+    // cout << "Current lane: " << this->lane << "; Target lane: " << lane_tag << "; Current d: " << d << endl;
     if(occupied_flg) {
         states.push_back(state_cur);
     } else {
@@ -161,7 +148,7 @@ vector<vector<double>> Vehicle::keep_lane_trajectory(const vector<vector<double>
     int ind_ahead = -1;
     double cost = 0;
 
-    vector<double> ref = get_polyfit_path(lane, 4, 35);
+    vector<double> ref = get_polyfit_path(lane, 3, 40);
 
     if (get_vehicle_ahead(sensor_fusion, lane, ind_ahead)) {
         double vx_ahead = sensor_fusion[ind_ahead][3];
@@ -177,11 +164,7 @@ vector<vector<double>> Vehicle::keep_lane_trajectory(const vector<vector<double>
     double cost_ineff = abs(ref_v - target_speed) / ref_v;
     double cost_lane = abs(lane - lane_desire);
 
-    if(target_speed > ref_v) {
-        cost = 1.0;
-    }
-
-    cost += (cost_weight[0] * cost_ineff) + (cost_weight[1] * cost_lane);
+    cost = (cost_weight[0] * cost_ineff) + (cost_weight[1] * cost_lane);
     trajectory.push_back({-1, cost});
 
     return trajectory;
@@ -202,7 +185,7 @@ vector<vector<double>> Vehicle::prep_lane_change_trajectory(string state_in, con
     double target_speed_sideahead = ref_v;
     int target_lane = lane + lane_direction[state_in];
 
-    vector<double> ref = get_polyfit_path(lane, 4, 35);
+    vector<double> ref = get_polyfit_path(lane, 3, 40);
 
     if (get_vehicle_ahead(sensor_fusion, lane, ind_ahead)) {
         double vx_ahead = sensor_fusion[ind_ahead][3];
@@ -230,8 +213,10 @@ vector<vector<double>> Vehicle::prep_lane_change_trajectory(string state_in, con
     double cost_ineff = (abs(ref_v - target_speed) + abs(ref_v - target_speed_side)) / (2.0 * ref_v);
     double cost_lane = abs(target_lane - lane_desire);
 
+    // Calculate cost under PLCL/PLCR states
+    // Offset of 0.001 is added to make sure PLCL/PLCR has less priority than KL
     cost = (cost_weight[0] * cost_ineff) + (cost_weight[1] * cost_lane) + 0.001;
-    cout << "PLC state: " << state_in << " with cost: " << cost << endl;
+    // cout << "PLC state: " << state_in << " with cost: " << cost << endl;
     trajectory.push_back({-1, cost});
 
     return trajectory;
@@ -265,7 +250,7 @@ vector<vector<double>> Vehicle::lane_change_trajectory(string state_in, const ve
         double vy_behind = sensor_fusion[ind_behind][4];
         double s_behind = sensor_fusion[ind_behind][5];
         target_speed_behind = sqrt((vx_behind*vx_behind) + (vy_behind*vy_behind));
-        if(s - s_behind <= 0.7 * preferred_buffer) {cost += 1.0;}
+        if(s - s_behind <= 0.5 * preferred_buffer) {cost += 1.0;} // When vehicles detected in the target line behind, set cost to a high value
     }
 
     if(get_vehicle_ahead(sensor_fusion, target_lane, ind_sideahead)) {
@@ -273,7 +258,7 @@ vector<vector<double>> Vehicle::lane_change_trajectory(string state_in, const ve
         double vy_sideahead = sensor_fusion[ind_sideahead][4];
         double s_sideahead = sensor_fusion[ind_sideahead][5];
         target_speed_sideahead = 0.975 * sqrt((vx_sideahead*vx_sideahead) + (vy_sideahead*vy_sideahead));
-        if(s_sideahead - s <= preferred_buffer) {cost += 1.0;}
+        if(s_sideahead - s <= preferred_buffer) {cost += 1.0;} // When vehicles detected in the target line ahead, set cost to a high value
     }
 
     target_speed_side = (target_speed_sideahead > target_speed_behind?target_speed_sideahead:target_speed_behind);
@@ -283,11 +268,12 @@ vector<vector<double>> Vehicle::lane_change_trajectory(string state_in, const ve
     double cost_ineff = abs(ref_v - target_speed_side) / ref_v;
     double cost_lane = abs(target_lane - lane_desire);
 
+    // Calculate cost under LCL/LCR states
     cost += (cost_weight[0] * cost_ineff) + (cost_weight[1] * cost_lane);
-    cout << "LC state: " << state_in << " with cost: " << cost << endl;
+    // cout << "LC state: " << state_in << " with cost: " << cost << endl;
     trajectory.push_back({-1, cost});
 
-    cout << "Lane change trajectory cost: " << cost << endl;
+    // cout << "Lane change trajectory cost: " << cost << endl;
     
     return trajectory;
 }

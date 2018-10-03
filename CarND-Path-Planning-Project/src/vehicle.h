@@ -11,12 +11,12 @@ using namespace std;
 using namespace tk;
 
 const double ref_v = 49.0 / 2.23694; // Reference speed to maintain (m/s)
-const double max_acc = 9; // Maximal acceleration allowed (m/s^2)
+const double max_acc = 8; // Maximal acceleration allowed (m/s^2)
 const double max_jerk = 8; // Maximal jerk allowed (m/s^3)
 const double dt = 0.02; // Time resolution (s)
 const double lane_width = 4.0; // Physical width of the lane (m)
 const int lane_desire = 1; // Desire lane to stay
-const int PATH_SIZE = 50; // Size of the vector next_path
+const int PATH_SIZE = 65; // Size of the vector next_path
 const double cost_weight[2] = {0.95, 0.05}; // Cost weighs of inefficient and lane-swapping costs
 
 class Vehicle {
@@ -28,7 +28,7 @@ public:
 
   spline s_gen; // Spline object to generate poly_fit
 
-  double preferred_buffer = 40.0; // Front and rear buffer area when maintaining space
+  double preferred_buffer = 35.0; // Front and rear buffer area when maintaining space
 
   int lane; // Current lane of the vehicle
   int lane_tag; // Target lane of the vehicle

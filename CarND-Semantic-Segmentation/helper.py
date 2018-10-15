@@ -58,10 +58,11 @@ def maybe_download_pretrained_vgg(data_dir):
         os.remove(os.path.join(vgg_path, vgg_filename))
 
 
-def gen_batch_function(data_folder, image_shape):
+def gen_batch_function(image_paths, label_paths, image_shape):
     """
     Generate function to create batches of training data
-    :param data_folder: Path to folder that contains all the datasets
+    :param image_paths: np array contains name of image files
+    :param label_paths: dictionary contains all image files together with the corresponding label files
     :param image_shape: Tuple - Shape of image
     :return:
     """
@@ -71,13 +72,13 @@ def gen_batch_function(data_folder, image_shape):
         :param batch_size: Batch Size
         :return: Batches of training data
         """
-        image_paths = glob(os.path.join(data_folder, 'image_2', '*.png'))
-        label_paths = {
-            re.sub(r'_(lane|road)_', '_', os.path.basename(path)): path
-            for path in glob(os.path.join(data_folder, 'gt_image_2', '*_road_*.png'))}
+        # image_paths = glob(os.path.join(data_folder, 'image_2', '*.png'))
+        # label_paths = {
+        #     re.sub(r'_(lane|road)_', '_', os.path.basename(path)): path
+        #     for path in glob(os.path.join(data_folder, 'gt_image_2', '*_road_*.png'))}
         background_color = np.array([255, 0, 0])
 
-        random.shuffle(image_paths)
+        # random.shuffle(image_paths)
         for batch_i in range(0, len(image_paths), batch_size):
             images = []
             gt_images = []

@@ -49,7 +49,7 @@ def load_vgg(sess, vgg_path):
     return vgg_input_tensor, vgg_keep_prob_tensor, vgg_layer3_out_tensor, vgg_layer4_out_tensor, vgg_layer7_out_tensor
 
 
-# tests.test_load_vgg(load_vgg, tf)
+tests.test_load_vgg(load_vgg, tf)
 
 
 def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
@@ -67,26 +67,35 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
                                 kernel_initializer=tf.random_normal_initializer(stddev=0.01),
                                 kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-4))
 
+    # Decode the vgg_layer4
     output = tf.layers.conv2d_transpose(conv_1x1, num_classes, 4, strides=(2, 2), padding='same',
                                         kernel_initializer=tf.random_normal_initializer(stddev=0.01),
                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-4))
+
+    # Resize the vgg_layer4 to match the num_class output and apply the weights of 0.01
     vgg_layer4_out_resize = tf.layers.conv2d(vgg_layer4_out, num_classes, 1, padding='same',
                                              kernel_initializer=tf.random_normal_initializer(stddev=0.01),
                                              kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-4))
-    vgg_layer4_out_resize = tf.multiply(vgg_layer4_out_resize, 0.001)
+    vgg_layer4_out_resize = tf.multiply(vgg_layer4_out_resize, 0.01)
 
+    # Apply skip connection to the output layer
     output = tf.add(output, vgg_layer4_out_resize)
 
+    # Decode the vgg_layer3
     output = tf.layers.conv2d_transpose(output, num_classes, 4, strides=(2, 2), padding='same',
                                         kernel_initializer=tf.random_normal_initializer(stddev=0.01),
                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-4))
+
+    # Resize the vgg_layer3 to match the num_class output and apply the weights of 0.0001 
     vgg_layer3_out_resize = tf.layers.conv2d(vgg_layer3_out, num_classes, 1, padding='same',
                                              kernel_initializer=tf.random_normal_initializer(stddev=0.01),
                                              kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-4))
     vgg_layer3_out_resize = tf.multiply(vgg_layer3_out_resize, 0.0001)
 
+    # Apply skip connection to the output layer
     output = tf.add(output, vgg_layer3_out_resize)
 
+    # Last step of decoding
     output = tf.layers.conv2d_transpose(output, num_classes, 16, strides=(8, 8), padding='same',
                                         kernel_initializer=tf.random_normal_initializer(stddev=0.01),
                                         kernel_regularizer=tf.contrib.layers.l2_regularizer(1e-4))
@@ -94,7 +103,7 @@ def layers(vgg_layer3_out, vgg_layer4_out, vgg_layer7_out, num_classes):
     return output
 
 
-# tests.test_layers(layers)
+tests.test_layers(layers)
 
 
 def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
@@ -110,7 +119,7 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     logits = nn_last_layer
     cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=correct_label, logits=logits)
     loss_operation = tf.reduce_mean(cross_entropy)
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate) # Use Adam optimizater with learning_rate specified
     training_operation = optimizer.minimize(loss_operation)
 
     # TODO: Implement IoU Accuracy Evaludation
@@ -119,7 +128,7 @@ def optimize(nn_last_layer, correct_label, learning_rate, num_classes):
     return logits, training_operation, loss_operation, iou_prediction, iou_update
 
 
-# tests.test_optimize(optimize)
+tests.test_optimize(optimize)
 
 
 def train_nn(sess, epochs, batch_size, get_batches_fn_train, get_batches_fn_val, train_op, cross_entropy_loss,
@@ -161,18 +170,18 @@ def train_nn(sess, epochs, batch_size, get_batches_fn_train, get_batches_fn_val,
             num_val_sample += len(image)
             accuracy_tot += (accuracy * len(image))
 
-        accuracy_tot /= num_val_sample
+        accuracy_tot /= num_val_sample # Average over all batches to get the mean accuracy under this epoch
         print("Epoch {}/{}: Validation Accuracy = {:.3f}".format(epoch + 1, epochs, accuracy_tot))
 
     pass
 
 
-# tests.test_train_nn(train_nn)
+tests.test_train_nn(train_nn)
 
 
 def run():
     num_classes = 2
-    epochs = 18
+    epochs = 20
     batch_size = 16
     image_shape = (160, 576)
     data_dir = './data'

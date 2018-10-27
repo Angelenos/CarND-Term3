@@ -101,6 +101,7 @@ def test_optimize(optimize):
     logits, train_op, cross_entropy_loss, iou_prediction, iou_update = optimize(layers_output, correct_label,
                                                                                 learning_rate, num_classes)
 
+    # Here the tensor shape inspection on logit shape is disabled since no transformation from "nn_last_layer" to "logit" was performed
     # _assert_tensor_shape(logits, [2*3*4, num_classes], 'Logits')
 
     with tf.Session() as sess:

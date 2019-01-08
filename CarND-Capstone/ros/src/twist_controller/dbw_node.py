@@ -66,9 +66,9 @@ class DBWNode(object):
                                     max_steer_angle=max_steer_angle)
         
         # TODO: Subscribe to all the topics you need to
-        rospy.Subscriber('/vehicle/dbw_enabled', dbw_enable, self.dbw_enable_cb)
-        rospy.Subscriber('/current_velocity', vel_cur, self.velocity_cb)
-        rospy.Subscriber('/twist_cmd', cmd, self.twist_cb)
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enable_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.velocity_cb)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cb)
         
         self.dbw_enable = None
         self.vel_lin_cur = None
@@ -92,8 +92,11 @@ class DBWNode(object):
             # if <dbw is enabled>:
             #   self.publish(throttle, brake, steer)
             if not None in (self.vel_lin_cur, self.vel_lin, self.vel_ang):
-                self.throttle, self.brake, self.steering = self.controller.contrl(self.vel_lin_cur, self.dbw_enable, self.veh_lin, self.vel_ang)
+                self.throttle, self.steering, self.brake = self.controller.control(self.vel_lin_cur, self.dbw_enable, self.vel_lin, self.vel_ang)
                 if self.dbw_enable:
+                    # rospy.logwarn("Throttle: {0}".format(self.throttle))
+                    # rospy.logwarn("Steering: {0}".format(self.steering))
+                    # rospy.logwarn("Brake: {0}".format(self.brake))
                     self.publish(self.throttle, self.brake, self.steering)
             rate.sleep()
             

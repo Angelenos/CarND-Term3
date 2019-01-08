@@ -1,3 +1,4 @@
+import rospy
 from pid import PID
 from yaw_controller import YawController
 from lowpass import LowPassFilter
@@ -10,9 +11,9 @@ class Controller(object):
     def __init__(self, vehicle_mass, fuel_capacity, brake_deanband, decel_limit, accel_limit, 
                  wheel_radius, wheel_base, steer_ratio, max_lat_accel, max_steer_angle):
         # TODO: Implement
-        kp = 0.3
-        ki = 0.1
-        kd = 0
+        kp = 0.5
+        ki = 0.001
+        kd = 0.01
         tau = 0.1 # Cutoff frequency
         ts = 0.02 # Sample time based on 50 Hz
         
@@ -37,10 +38,10 @@ class Controller(object):
         if not dbw_enabled:
             self.throttle_controller.reset()
         else:
-            vel_cur = self.vel_lpf.filt(vel_cur)
-            steering = self.yaw_controller.get_steering(vel_lin, vel_ang, vel_cur)
+            vel_cur_filt = self.vel_lpf.filt(vel_cur)
+            steering = self.yaw_controller.get_steering(vel_lin, vel_ang, vel_cur_filt)
             
-            vel_diff = vel_lin - vel_cur
+            vel_diff = vel_lin - vel_cur_filt
             
             current_time = rospy.get_time()
             sample_time = current_time - self.last_time
@@ -49,7 +50,7 @@ class Controller(object):
             throttle = self.throttle_controller.step(vel_diff, sample_time)
             brake = 0.0
             
-            if veh_lin == 0.0 and vel_cur < 0.1:
+            if vel_lin == 0.0 and vel_cur_filt < 0.1:
                 throttle = 0.0
                 brake = 700.0 # Hold the vehicle to static by applying a large braking torque when speed is sufficiently small
             elif throttle < 0.1 and vel_diff < 0:

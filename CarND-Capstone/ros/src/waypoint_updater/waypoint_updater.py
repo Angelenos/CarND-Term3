@@ -4,6 +4,7 @@ import rospy
 import numpy as np
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 from scipy.spatial import KDTree
 
 import math
@@ -23,7 +24,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 300 # Number of waypoints we will publish. You can change this number
 
 
 class WaypointUpdater(object):
@@ -44,21 +45,21 @@ class WaypointUpdater(object):
         self.base_waypoints = None
         self.waypoints_2d = None
         self.waypoint_tree = None
-        self.stopline_wp_idx = None
+        self.stopline_wp_idx = -1
         
-        rospy.loop()
+        self.loop()
     
     def loop(self):
         rate = rospy.Rate(50)
         while not rospy.is_shutdown():
             if self.pose and self.base_waypoints:
                 self.publish_waypoints()
-           rate.sleep()
+            rate.sleep()
     
     def get_closest_waypoint_idx(self):
         x = self.pose.pose.position.x
         y = self.pose.pose.position.y
-        closest_idx = self.waypoint_tree.query([x, y], 1)(1)
+        closest_idx = self.waypoint_tree.query([x, y], 1)[1]
         
         closest_coord = self.waypoints_2d[closest_idx]
         prev_coord = self.waypoints_2d[closest_idx - 1]
@@ -82,7 +83,7 @@ class WaypointUpdater(object):
         
         closest_idx = self.get_closest_waypoint_idx()
         farthest_idx = closest_idx + LOOKAHEAD_WPS
-        base_waypoints = self.base_lane.waypoints[closest_idx:farthest_idx]
+        base_waypoints = self.base_waypoints.waypoints[closest_idx:farthest_idx]
         
         if self.stopline_wp_idx == -1 or (self.stopline_wp_idx >= farthest_idx):
             lane.waypoints = base_waypoints
@@ -97,13 +98,13 @@ class WaypointUpdater(object):
             p = Waypoint()
             p.pose = wp.pose
             
-            stop_idx = max(self.stopline_wp_idx - closest_idx - 2, 0)
+            stop_idx = max(self.stopline_wp_idx - closest_idx - 5, 0)
             dist = self.distance(waypoints, i, stop_idx)
-            vel = math.sqrt(2 * MAX_DECEL * dist)
+            vel = math.sqrt(2 * 5. * dist)
             if vel < 1.0:
                 vel = 0.0
                 
-            self.set_waypoint_velocity(waypoints, i, min(vel, self.get_waypoint_velocity(p)))
+            p.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
             result.append(p)
         
         return result

@@ -8,10 +8,12 @@ import pathlib
 DETECT_THRES = 0.5
 
 class TLClassifier(object):
-    def __init__(self):
+    def __init__(self, is_site):
         #TODO load classifier
-
-        PATH_TO_MODEL = str(pathlib.Path(__file__).parent) + '/simulator_fine_tune_2000/frozen_inference_graph.pb'
+        if is_site: # Use the classfier for site camera
+            PATH_TO_MODEL = str(pathlib.Path(__file__).parent) + '/fast_rcnn_incept_3000/frozen_inference_graph.pb'
+        else: # Use the classfier for simulator camera
+            PATH_TO_MODEL = str(pathlib.Path(__file__).parent) + '/simulator_fine_tune_2000/frozen_inference_graph.pb'
 
         self.detection_graph = tf.Graph()
 

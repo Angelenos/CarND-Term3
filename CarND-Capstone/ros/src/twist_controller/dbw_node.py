@@ -93,10 +93,7 @@ class DBWNode(object):
             #   self.publish(throttle, brake, steer)
             if not None in (self.vel_lin_cur, self.vel_lin, self.vel_ang):
                 self.throttle, self.steering, self.brake = self.controller.control(self.vel_lin_cur, self.dbw_enable, self.vel_lin, self.vel_ang)
-                if self.dbw_enable:
-                    # rospy.logwarn("Throttle: {0}".format(self.throttle))
-                    # rospy.logwarn("Steering: {0}".format(self.steering))
-                    # rospy.logwarn("Brake: {0}".format(self.brake))
+                if self.dbw_enable: # only publish controller commands if dbw is enabled
                     self.publish(self.throttle, self.brake, self.steering)
             rate.sleep()
             

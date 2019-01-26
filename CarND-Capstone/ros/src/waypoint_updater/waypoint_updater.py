@@ -64,6 +64,8 @@ class WaypointUpdater(object):
         closest_coord = self.waypoints_2d[closest_idx]
         prev_coord = self.waypoints_2d[closest_idx - 1]
         
+        # Determine the closest waypoint index
+
         cl_vect = np.array(closest_coord)
         prev_vect = np.array(prev_coord)
         pos_vect = np.array([x, y])
@@ -71,6 +73,7 @@ class WaypointUpdater(object):
         val = np.dot(cl_vect - prev_vect, pos_vect - cl_vect)
         if val > 0:
             closest_idx = (closest_idx + 1) % len(self.waypoints_2d)
+
         return closest_idx
     
     def publish_waypoints(self):
@@ -85,6 +88,7 @@ class WaypointUpdater(object):
         farthest_idx = closest_idx + LOOKAHEAD_WPS
         base_waypoints = self.base_waypoints.waypoints[closest_idx:farthest_idx]
         
+        # Deteremine the waypoints to generate depending on whether stopline waypoints are provided
         if self.stopline_wp_idx == -1 or (self.stopline_wp_idx >= farthest_idx):
             lane.waypoints = base_waypoints
         else:
@@ -93,6 +97,10 @@ class WaypointUpdater(object):
         return lane
     
     def decelerate_waypoints(self, waypoints, closest_idx):
+        '''
+        Function to generate waypoints that drive the vehicle in deaccelerating way and stop
+        at designated waypoint
+        '''
         result = []
         for i, wp in enumerate(waypoints):
             p = Waypoint()
@@ -101,6 +109,8 @@ class WaypointUpdater(object):
             stop_idx = max(self.stopline_wp_idx - closest_idx - 5, 0)
             dist = self.distance(waypoints, i, stop_idx)
             vel = math.sqrt(2 * 5. * dist)
+
+            # For sufficiently small speed it will be treated as full stop
             if vel < 1.0:
                 vel = 0.0
                 

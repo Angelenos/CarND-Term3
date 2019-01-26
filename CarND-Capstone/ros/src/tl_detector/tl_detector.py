@@ -13,7 +13,7 @@ import cv2
 import yaml
 import numpy as np
 
-STATE_COUNT_THRESHOLD = 5
+STATE_COUNT_THRESHOLD = 5 # Threshold to confirm the state detected is valid
 
 class TLDetector(object):
     def __init__(self):
@@ -70,20 +70,6 @@ class TLDetector(object):
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
-        '''
-        light_wp, state = self.process_traffic_lights()
-        if self.state != state:
-            self.state_count = 0
-            self.state = state
-        elif self.state_count >= STATE_COUNT_THRESHOLD:
-            self.last_state = self.state
-            light_wp = light_wp if state == TrafficLight.RED else -1
-            self.last_wp = light_wp
-            self.upcoming_red_light_pub.publish(Int32(light_wp))
-        else:
-            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
-        self.state_count += 1
-        '''
 
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
@@ -95,14 +81,7 @@ class TLDetector(object):
         """
         self.has_image = True
         self.camera_image = msg
-        '''
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
-        filename = "/home/enos/Documents/Udacity/Project/Term 3/CarND-Capstone/training/simulator/" + str(self.image_count / 5) + ".jpg"
-        if self.image_count % 5 == 0:
-            status = cv2.imwrite(filename, cv_image)
-            rospy.logwarn("Image writing status: {0}".format(status))
-        self.image_count += 1
-        '''
+        
         light_wp, state = self.process_traffic_lights()
         '''
         Publish upcoming red lights at camera frequency.
@@ -169,7 +148,7 @@ class TLDetector(object):
         """
         light_closest = None
         light_wp_idx = -1
-        state = state_temp = TrafficLight.UNKNOWN
+        state = TrafficLight.UNKNOWN
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
@@ -178,6 +157,8 @@ class TLDetector(object):
 
             #TODO find the closest visible traffic light (if one exists)
             diff = len(self.waypoints.waypoints)
+
+            # Loop through the list of all lights to determine the closest one
             for i, light in enumerate(self.lights):
                 line = stop_line_positions[i]
                 temp_wp_idx = self.get_closest_waypoint(line[0], line[1])
@@ -186,7 +167,6 @@ class TLDetector(object):
                     diff = d
                     light_closest = light
                     light_wp_idx = temp_wp_idx
-                    state_temp = light.state
 
         if light_closest:
             state = self.get_light_state(light_closest) # state_temp 

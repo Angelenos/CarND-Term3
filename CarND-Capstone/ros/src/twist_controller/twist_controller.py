@@ -17,6 +17,7 @@ class Controller(object):
         tau = 0.1 # Cutoff frequency
         ts = 0.02 # Sample time based on 50 Hz
         
+        # Initialize yaw and PID controller together with LPF objects
         self.yaw_controller = YawController(wheel_base, steer_ratio, 0.1, max_lat_accel, max_steer_angle)
         self.throttle_controller = PID(kp, ki, kd, 0.0, 0.2)
         self.vel_lpf = LowPassFilter(tau, ts)

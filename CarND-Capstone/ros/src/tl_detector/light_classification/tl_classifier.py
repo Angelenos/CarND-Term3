@@ -5,21 +5,23 @@ import os
 import rospy
 import pathlib
 
-DETECT_THRES = 0.5
+DETECT_THRES = 0.7 # Threshold to determine a valid detection
 
 class TLClassifier(object):
     def __init__(self, is_site):
         #TODO load classifier
+
         if is_site: # Use the classfier for site camera
             PATH_TO_MODEL = str(pathlib.Path(__file__).parent) + '/fast_rcnn_incept_3000/frozen_inference_graph.pb'
         else: # Use the classfier for simulator camera
             PATH_TO_MODEL = str(pathlib.Path(__file__).parent) + '/simulator_fine_tune_2000/frozen_inference_graph.pb'
 
-        self.detection_graph = tf.Graph()
+        self.detection_graph = tf.Graph() # Declair graph object
 
         with self.detection_graph.as_default():
             od_graph_def = tf.GraphDef()
-            # Works up to here.
+
+            # Read frozen tensor from training
             with tf.gfile.GFile(PATH_TO_MODEL, 'rb') as fid:
                 serialized_graph = fid.read()
                 od_graph_def.ParseFromString(serialized_graph)
@@ -44,6 +46,7 @@ class TLClassifier(object):
 
         """
         #TODO implement light color prediction
+
         with self.detection_graph.as_default():
             # Expand dimension since the model expects image to have shape [1, None, None, 3].
             img_expanded = np.expand_dims(image, axis=0)  
@@ -51,6 +54,7 @@ class TLClassifier(object):
                 [self.d_boxes, self.d_scores, self.d_classes, self.num_d],
                 feed_dict={self.image_tensor: img_expanded})
 
+        # Retrieve the results with highest score
         res_label = classes[0][0]
         res_score = scores[0][0]
 

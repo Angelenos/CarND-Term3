@@ -1,74 +1,149 @@
-This is the project repo for the final project of the Udacity Self-Driving Car Nanodegree: Programming a Real Self-Driving Car. For more information about the project, see the project introduction [here](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/5ab4b122-83e6-436d-850f-9f4d26627fd9).
+# Programming a Real Self-Driving Car
 
-Please use **one** of the two installation options, either native **or** docker installation.
+## Writeup
 
-### Native Installation
+**Implement a Self-Driving Algorithm**
 
-* Be sure that your workstation is running Ubuntu 16.04 Xenial Xerus or Ubuntu 14.04 Trusty Tahir. [Ubuntu downloads can be found here](https://www.ubuntu.com/download/desktop).
-* If using a Virtual Machine to install Ubuntu, use the following configuration as minimum:
-  * 2 CPU
-  * 2 GB system memory
-  * 25 GB of free hard drive space
+The goals / steps of this project are the following:
+- Implement a self-driving controller algorithm following the ROS architecture
+- Integrate a pre-trained traffic light classifier to identify the traffic signals
 
-  The Udacity provided virtual machine has ROS and Dataspeed DBW already installed, so you can skip the next two steps if you are using this.
+[//]: # (References)
+[image1]: ./imgs/final-project-ros-graph-v2.png "ROS"
+[image2]: ./imgs/sample_simulator.jpg "Simulator"
+[image3]: ./imgs/labeling.jpg "LabelImg"
+[image4]: ./imgs/sample_site.jpg "Site"
+[image5]: ./imgs/simulator_result1.png "Simulator Result 1"
+[image6]: ./imgs/simulator_result2.png "Simulator Result 2"
+[image7]: ./imgs/site_result1.png "Site Result 1"
+[image8]: ./imgs/site_result2.png "Site Result 2"
 
-* Follow these instructions to install ROS
-  * [ROS Kinetic](http://wiki.ros.org/kinetic/Installation/Ubuntu) if you have Ubuntu 16.04.
-  * [ROS Indigo](http://wiki.ros.org/indigo/Installation/Ubuntu) if you have Ubuntu 14.04.
-* [Dataspeed DBW](https://bitbucket.org/DataspeedInc/dbw_mkz_ros)
-  * Use this option to install the SDK on a workstation that already has ROS installed: [One Line SDK Install (binary)](https://bitbucket.org/DataspeedInc/dbw_mkz_ros/src/81e63fcc335d7b64139d7482017d6a97b405e250/ROS_SETUP.md?fileviewer=file-view-default)
-* Download the [Udacity Simulator](https://github.com/udacity/CarND-Capstone/releases).
+## Team Member
+This project is completed individually by Fengwen Song ([onlyenos@gmail.com](onlyenos@gmail.com)). 
 
-### Docker Installation
-[Install Docker](https://docs.docker.com/engine/installation/)
+## Rubric Points
+ Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/1140/view) individually and describe how I addressed each point in my implementation.
 
-Build the docker container
-```bash
-docker build . -t capstone
+## Software Architecture
+
+The testing platform was pre-installed with ROS, which is the fundamental architecture for the self-driving algorithms. Details of the architecture can be found in the following image.
+
+![ROS Architecture][image1]
+
+Here arrows with lables represent the subscription or topics that passes among functional blocks. And each functional block represents a module that is inplemented in Python. The functional blocks to implement during this project are:
+
+| Name | Description | 
+|:------- :|:---------------:| 
+| [Traffic light detector](./ros/src/tl_detector/tl_detector.py) | Implementation of call-backs for camera images and detection of traffic lights |
+| [Traffic light classifier](./ros/src/tl_detector/light_classification/tl_classifier.py) | Implementation of classifier that loads pre-trained model to detect traffic lights from images received |
+| [Waypoint updater](./ros/src/waypoint_updater/waypoint_updater.py) | Implementation of waypoints generator that create waypoints for the vehicle to follow depending on whether traffic light was observed and map data |
+| [DBW node](./ros/src/twist_controller/dbw_node.py) | Implementation of drive-by-wire module that generate control signals (throttle, brake, steering) based on the given waypoints |
+| [Twist controller](./ros/src/twist_controller/twist_controller.py) | Implementation of the detailed control functions that are called by dbw node to generat the control signals based on the idea of yaw, PID controller |
+
+Apart from the ROS nodes, 2 frozen tensor files that are pre-trained with the traffic light images from simulator and real test site are included in the project repository and will be called by the algorithm for traffic light identification
+
+| Name | Description | 
+|:------- :|:---------------:| 
+| [Simulator](./ros/src/tl_detector/light_classification/simulator_fine_tune_2000/frozen_inference_graph.pb) | Model that is trained based on simulator screenshots |
+| [Site](./ros/src/tl_detector/light_classification/fast_rcnn_incept_3000/frozen_inference_graph.pb) | Model that is trained basd on ROS bag image data |
+
+Details of the classifier will be covered in the sections below.
+
+## Classifier
+
+### Platform
+
+The traffic light classifier was trained with [Google Tensorflow Object Detection API](https://github.com/tensorflow/models/tree/master/research/object_detection). It is an opn-source framework built on top of Tensorflow and supports multiple common networks that are pre-trained for object detection.
+
+Here since the version of tensorflow on testing vehicle is 1.3.0, the commit [1e2ada](https://github.com/hamediramin/ObjectDetectionAPI/commit/1e2ada24c6734b3f6f4e09cb98f66f3aad68de76) is adopted instead of the latest commit.
+
+### Training Dataset
+
+It is recommended that different models are trained and selected separately by the algorithm for simulator and site test to achieve the best performance. Thus different methods were adopted in this project to acquire training dataset for either scenario.
+
+#### Simulator
+
+The [simulator](https://github.com/udacity/CarND-Capstone/releases) is programmed based on Unity 3D engine and can interact with the self-driving algorithm via COM port 4567 communication. From the architecture above it can be found that the topic ``/image_color`` is passed by the simulator to the traffic light detector node and contains the camera images captured. Therefore the simplest way to acquire training dataset is to modify the traffic light call-back function and save the images received.
+
+In this project 302 images were captured and stored locally as the training dataset containing red, yellow and green lights at different distance (see a sample of captured image in simulator below)
+![Simulator camera image sample][image2]
+
+To label the location and type of traffic lights in the image, the tool [labelImg](https://github.com/tzutalin/labelImg) is adopted in this project. This tool support quick labeling and catagorizing the objects in an image and can generate label files in the format supported by Tensorflow Object Detection API. Below is a screenshot of the tool when labeling a sample image.
+![LabelImg][image3]
+
+#### Site
+
+For real site testing data, Udacity provides a sample [rosbag file](https://drive.google.com/file/d/0B2_h37bMVw3iYkdJTlRSUlJIamM/view) that is recorded in the same testing site. This rosbag file contains a crop of video recorded with camera on Carla together with the vehicle location information and can be serve as the training dataset for site scenario.
+
+To retrieve image from the rosbag file, the ROS node ``image_view`` is used here with the following command:
+
+```sh
+rosrun image_view image_saver _sec_per_frame:=0.01 image:=/image_raw
 ```
 
-Run the docker file
-```bash
-docker run -p 4567:4567 -v $PWD:/capstone -v /tmp/log:/root/.ros/ --rm -it capstone
+It saves the video frame when the rosbag file is played with the frame rate specified. In this project 480 image files were used as the training dataset containing red, yellow and green lights at different distance (see a sample of captured image in simulator below)
+![Carla camera image sample][image4]
+
+All images were then labeled by LabelImg tool in the same way as simulator case.
+
+#### Dataset Conversion
+
+After labeling, the training dataset now contains camera files in image format and labeling files in .xml format in the following hierarchy:
+
+```
+path/to
+|
+└─rgb
+│   │  img01.jpg
+│   │  img02.jpg
+│   │  ...
+|   |
+│   └──labels
+│      │   img01.xml
+│      │   img02.xml
+│      │   ...
+|
 ```
 
-### Port Forwarding
-To set up port forwarding, please refer to the [instructions from term 2](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/16cf4a78-4fc7-49e1-8621-3450ca938b77)
+They need to be converted into a specific type of file that can be adopted by Tensorflow Object Detection API as the training dataset. Object Detection API includes the relevant functions of conversion in the repository, and for this project the [to_tfrecords.py](https://github.com/bosch-ros-pkg/bstld/blob/master/tf_object_detection/to_tfrecords.py) function included in the [Bosch Small Traffic Lights Dataset](https://github.com/bosch-ros-pkg/bstld) was modified to perform the conversion.
 
-### Usage
+### Selection of Neural Network and Training
 
-1. Clone the project repository
-```bash
-git clone https://github.com/udacity/CarND-Capstone.git
-```
+Tensorflow Object Detection API has a variety supports of networks included in the [Detection Model Zoo](https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md). It is recommended from peer reviews ([Alex](https://github.com/alex-lechner/Traffic-Light-Classification#21-extract-images-from-a-rosbag-file) and [Intel](https://software.intel.com/en-us/articles/traffic-light-detection-using-the-tensorflow-object-detection-api)) that the following 2 models might suit the best in this project:
 
-2. Install python dependencies
-```bash
-cd CarND-Capstone
-pip install -r requirements.txt
-```
-3. Make and run styx
-```bash
-cd ros
-catkin_make
-source devel/setup.sh
-roslaunch launch/styx.launch
-```
-4. Run the simulator
+* [SSD Inception V2 Coco (01/28/2018)](http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz)
+* [Faster RCNN Inception V2 Coco (01/28/2018)](http://download.tensorflow.org/models/object_detection/mask_rcnn_inception_v2_coco_2018_01_28.tar.gz)
 
-### Real world testing
-1. Download [training bag](https://s3-us-west-1.amazonaws.com/udacity-selfdrivingcar/traffic_light_bag_file.zip) that was recorded on the Udacity self-driving car.
-2. Unzip the file
-```bash
-unzip traffic_light_bag_file.zip
-```
-3. Play the bag file
-```bash
-rosbag play -l traffic_light_bag_file/traffic_light_training.bag
-```
-4. Launch your project in site mode
-```bash
-cd CarND-Capstone/ros
-roslaunch launch/site.launch
-```
-5. Confirm that traffic light detection works on real life images
+Both models are pre-trained networks with [coco dataset](http://cocodataset.org/#home) and can be fine-trained in this project based on the idea of transfer learning. After comparison, [Faster RCNN Inception V2 Coco (01/28/2018)](http://download.tensorflow.org/models/object_detection/mask_rcnn_inception_v2_coco_2018_01_28.tar.gz), though has to be trained separately for simulator and site scenarios, achieved better accuracy (over 90%) than [SSD Inception V2 Coco (01/28/2018)](http://download.tensorflow.org/models/object_detection/ssd_inception_v2_coco_2018_01_28.tar.gz) (around 60%) and is thus selected as the model of training in the project.
+
+Fine-trainings were performed on [AWS EC2 instances](https://us-west-1.console.aws.amazon.com/ec2/v2/home?region=us-west-1#). The AMI created by Udacity ``udacity-carnd-advanced-deep-learning`` was selected as the template and ``g2.8xlarge`` was selected as the instanc type to ensure better performance. 2000 steps of training was performed for simulator training dataset and 3000 steps for the site.
+
+After training the tensor file was frozen into .pb files and downloaded from AWS instance to local drive so that the self-driving algorithm can access. Verification was performed on the local gaming laptop with the following hardware configuration:
+
+| Component | Details |
+|:------- :|:---------------:|
+| CPU | Intel I7 6820HK |
+| RAM | 32GB DDR4 2133 |
+| GPU | Nvidia GTX 980 |
+
+When testing with the simulator, no delay was observed for traffic light detection, which indicates the time cost of detection model is less than the sampling rate of the camera. It can be then assumed that no performance issue will be expected from the real site testing as the [hardware configuration](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/project) on the testing vehicle is more powerful than what mentioned above.
+
+### Results of Detection
+
+Models trained under both simulator and site training dataset achieved great accuracy (see images below):
+
+![simulator result 1][image5]{:height=330} ![simulator result 2][image6]{:height=330}
+*Simulator results*
+
+![site result 1][image7]{:height=330} ![site result 2][image8]{:height=330}
+*Site results*
+
+It can be observed from the sample above that traffic lights are identified clearly with high confidency regardless of distance and the outline of the traffic light was marked accurately as well. Simulator test also proves that vehicle is able to react correctly according to the varying traffic light conditions.
+
+## Notes from the Reviewer
+
+#### Please attach any comments or questions below this line:
+
+
+
+

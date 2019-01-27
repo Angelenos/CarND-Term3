@@ -17,9 +17,10 @@ The goals / steps of this project are the following:
 [image6]: ./imgs/simulator_result2.png "Simulator Result 2"
 [image7]: ./imgs/site_result1.png "Site Result 1"
 [image8]: ./imgs/site_result2.png "Site Result 2"
+[image9]: ./imgs/simulator.png "Simulator Result"
 
 ## Team Member
-This project is completed individually by Fengwen Song ([onlyenos@gmail.com](onlyenos@gmail.com)). 
+This project is completed individually by Fengwen Song (<onlyenos@gmail.com>).
 
 ## Rubric Points
  Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/1140/view) individually and describe how I addressed each point in my implementation.
@@ -33,7 +34,7 @@ The testing platform was pre-installed with ROS, which is the fundamental archit
 Here arrows with lables represent the subscription or topics that passes among functional blocks. And each functional block represents a module that is inplemented in Python. The functional blocks to implement during this project are:
 
 | Name | Description | 
-|:------- :|:---------------:| 
+|:---:|:---:| 
 | [Traffic light detector](./ros/src/tl_detector/tl_detector.py) | Implementation of call-backs for camera images and detection of traffic lights |
 | [Traffic light classifier](./ros/src/tl_detector/light_classification/tl_classifier.py) | Implementation of classifier that loads pre-trained model to detect traffic lights from images received |
 | [Waypoint updater](./ros/src/waypoint_updater/waypoint_updater.py) | Implementation of waypoints generator that create waypoints for the vehicle to follow depending on whether traffic light was observed and map data |
@@ -43,11 +44,25 @@ Here arrows with lables represent the subscription or topics that passes among f
 Apart from the ROS nodes, 2 frozen tensor files that are pre-trained with the traffic light images from simulator and real test site are included in the project repository and will be called by the algorithm for traffic light identification
 
 | Name | Description | 
-|:------- :|:---------------:| 
+|:---:|:---:| 
 | [Simulator](./ros/src/tl_detector/light_classification/simulator_fine_tune_2000/frozen_inference_graph.pb) | Model that is trained based on simulator screenshots |
 | [Site](./ros/src/tl_detector/light_classification/fast_rcnn_incept_3000/frozen_inference_graph.pb) | Model that is trained basd on ROS bag image data |
 
 Details of the classifier will be covered in the sections below.
+
+## Waypoint Updater
+
+Implementation of the waypoint update is based on the [walk-through videos](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/e4ed7b44-6330-48a2-bfb0-fd65fff1b4d1) provided by Udacity. The waypoint updater node subscribes to the topic ``/base_waypoints`` and it adopts the KDTree library to sort the waypoints based on their distance to the current vehicle location. In the meantime, it will generate the lane containing the following ``LOOKAHEAD_WPS`` numbers of waypoints in front of the vehicle at the rate of 50 Hz.
+
+When generating the lane, it will also subscribe to the ``\traffic_waypoint`` topic to determine whether red traffic light is detected in front of the vehicle. It will follow the waypoint speed limit if traffic is clean ([line 92](./ros/src/waypoint_updater/waypoint_updater.py)) or it will generate a constant-deaccleration speed profile to make sure vehicle is able to fully stop in front of the red traffic light ([line 94](./ros/src/waypoint_updater/waypoint_updater.py)).
+
+## Drive-by-Wire Node
+
+Implementation of the ``dbw_node`` is based on the [walk-through videos](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/e1a23b06-329a-4684-a717-ad476f0d8dff/lessons/462c933d-9f24-42d3-8bdc-a08a5fc866e4/concepts/6546d82d-6028-4210-a4b0-9d559662a881) provided by Udacity. WIthin its initialization functions it create a controller object defined by ``twist_controller`` node and initialize key vehicle parameters including vehicle mass, dimensions and dynamic limits.
+
+During the drive it will send out control signals including throttle, brake and steering calculated by ``twist_controller`` object at the rate of 50 Hz, which is requested by the actuator on the car and simulator. In the meantime it will check whether the drive-by-wire bit is enable and will stop sending control signals and reset the PID controller whenever this bit is disabled (usually done by the test staff on the vehicle under emergency)
+
+The ``twist_controller`` node contains objects of a PID controller, yaw controller and low-pass filter. Both PID and yaw controllers were implemented by Udacity together with the low-pass filter. This node will first filter the vehicle speed signal it received with the low-pass filter, and send it to both PID and yaw controllers to calculate the necessary control signals so that the vehicle is able to follow the desired speed and track.
 
 ## Classifier
 
@@ -121,7 +136,7 @@ Fine-trainings were performed on [AWS EC2 instances](https://us-west-1.console.a
 After training the tensor file was frozen into .pb files and downloaded from AWS instance to local drive so that the self-driving algorithm can access. Verification was performed on the local gaming laptop with the following hardware configuration:
 
 | Component | Details |
-|:------- :|:---------------:|
+|:---:|:---:| 
 | CPU | Intel I7 6820HK |
 | RAM | 32GB DDR4 2133 |
 | GPU | Nvidia GTX 980 |
@@ -137,6 +152,9 @@ Models trained under both simulator and site training dataset achieved great acc
 
 ![site result 1][image7]{:height=330} ![site result 2][image8]{:height=330}
 *Site results*
+
+![site result 1][image9]
+*Simulator Screenshot*
 
 It can be observed from the sample above that traffic lights are identified clearly with high confidency regardless of distance and the outline of the traffic light was marked accurately as well. Simulator test also proves that vehicle is able to react correctly according to the varying traffic light conditions.
 

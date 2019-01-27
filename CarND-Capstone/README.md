@@ -147,13 +147,13 @@ When testing with the simulator, no delay was observed for traffic light detecti
 
 Models trained under both simulator and site training dataset achieved great accuracy (see images below):
 
-![simulator result 1][image5]{:height=330} ![simulator result 2][image6]{:height=330}
+<img src=./imgs/simulator_result1.png height=450> <img src=./imgs/simulator_result2.png height=450>
 *Simulator results*
 
-![site result 1][image7]{:height=330} ![site result 2][image8]{:height=330}
+<img src=./imgs/site_result1.png height=450> <img src=./imgs/site_result2.png height=450>
 *Site results*
 
-![site result 1][image9]
+<img src=./imgs/simulator.png>
 *Simulator Screenshot*
 
 It can be observed from the sample above that traffic lights are identified clearly with high confidency regardless of distance and the outline of the traffic light was marked accurately as well. Simulator test also proves that vehicle is able to react correctly according to the varying traffic light conditions.

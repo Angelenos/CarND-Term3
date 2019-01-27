@@ -147,10 +147,10 @@ When testing with the simulator, no delay was observed for traffic light detecti
 
 Models trained under both simulator and site training dataset achieved great accuracy (see images below):
 
-<img src=./imgs/simulator_result1.png height=300> <img src=./imgs/simulator_result2.png height=300>
+<img src=./imgs/simulator_result1.png height=320> <img src=./imgs/simulator_result2.png height=320>
 *Simulator results*
 
-<img src=./imgs/site_result1.png height=300> <img src=./imgs/site_result2.png height=300>
+<img src=./imgs/site_result1.png height=320> <img src=./imgs/site_result2.png height=320>
 *Site results*
 
 <img src=./imgs/simulator.png>
